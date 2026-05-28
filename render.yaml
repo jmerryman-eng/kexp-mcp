@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: kexp-mcp-server
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run http
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+    healthCheckPath: /health

@@ -1,0 +1,300 @@
+name: "KEXP Radio API"
+description: "Access KEXP radio data including current plays, recent tracks, hosts, programs, and shows"
+version: "1.0.0"
+base_url: "http://localhost:3000"
+
+endpoints:
+  - path: "/current"
+    method: "GET"
+    name: "get_current_play"
+    description: "Get the currently playing track on KEXP"
+    response_schema:
+      type: "object"
+      properties:
+        success:
+          type: "boolean"
+        data:
+          type: "object"
+          properties:
+            song:
+              type: "string"
+              description: "Song title"
+            artist:
+              type: "string"
+              description: "Artist name"
+            album:
+              type: "string"
+              description: "Album name"
+            airdate:
+              type: "string"
+              description: "When the track aired (ISO datetime)"
+            image_uri:
+              type: "string"
+              description: "Album cover image URL"
+            thumbnail_uri:
+              type: "string"
+              description: "Album cover thumbnail URL"
+            rotation_status:
+              type: "string"
+              description: "Rotation status (Heavy, Medium, Light, Library)"
+            is_local:
+              type: "boolean"
+              description: "Is this a local Seattle artist"
+            is_request:
+              type: "boolean"
+              description: "Was this track requested by a listener"
+            play_type:
+              type: "string"
+              description: "Type of play (trackplay, airbreak, etc.)"
+
+  - path: "/recent"
+    method: "GET"
+    name: "get_recent_plays"
+    description: "Get recently played tracks on KEXP"
+    parameters:
+      - name: "limit"
+        in: "query"
+        type: "integer"
+        description: "Number of tracks to return (1-100, default: 10)"
+        minimum: 1
+        maximum: 100
+        default: 10
+    response_schema:
+      type: "object"
+      properties:
+        success:
+          type: "boolean"
+        data:
+          type: "array"
+          items:
+            type: "object"
+            properties:
+              id:
+                type: "integer"
+              song:
+                type: "string"
+              artist:
+                type: "string"
+              album:
+                type: "string"
+              airdate:
+                type: "string"
+              image_uri:
+                type: "string"
+              thumbnail_uri:
+                type: "string"
+        count:
+          type: "integer"
+
+  - path: "/search"
+    method: "GET"
+    name: "search_plays"
+    description: "Search for tracks by artist, song, or album"
+    parameters:
+      - name: "q"
+        in: "query"
+        type: "string"
+        description: "Search query for artist, song, or album"
+        required: true
+      - name: "limit"
+        in: "query"
+        type: "integer"
+        description: "Number of results to return (1-50, default: 10)"
+        minimum: 1
+        maximum: 50
+        default: 10
+    response_schema:
+      type: "object"
+      properties:
+        success:
+          type: "boolean"
+        query:
+          type: "string"
+        data:
+          type: "array"
+        count:
+          type: "integer"
+
+  - path: "/hosts"
+    method: "GET"
+    name: "get_hosts"
+    description: "Get KEXP radio hosts"
+    parameters:
+      - name: "limit"
+        in: "query"
+        type: "integer"
+        description: "Number of hosts to return (1-100, default: 20)"
+        minimum: 1
+        maximum: 100
+        default: 20
+      - name: "active"
+        in: "query"
+        type: "boolean"
+        description: "Only return active hosts (default: true)"
+        default: true
+    response_schema:
+      type: "object"
+      properties:
+        success:
+          type: "boolean"
+        data:
+          type: "array"
+          items:
+            type: "object"
+            properties:
+              id:
+                type: "integer"
+              name:
+                type: "string"
+              is_active:
+                type: "boolean"
+              image_uri:
+                type: "string"
+        count:
+          type: "integer"
+
+  - path: "/programs"
+    method: "GET"
+    name: "get_programs"
+    description: "Get KEXP radio programs"
+    parameters:
+      - name: "limit"
+        in: "query"
+        type: "integer"
+        description: "Number of programs to return (1-100, default: 20)"
+        minimum: 1
+        maximum: 100
+        default: 20
+      - name: "active"
+        in: "query"
+        type: "boolean"
+        description: "Only return active programs (default: true)"
+        default: true
+    response_schema:
+      type: "object"
+      properties:
+        success:
+          type: "boolean"
+        data:
+          type: "array"
+          items:
+            type: "object"
+            properties:
+              id:
+                type: "integer"
+              name:
+                type: "string"
+              host_names:
+                type: "array"
+                items:
+                  type: "string"
+              tagline:
+                type: "string"
+              is_active:
+                type: "boolean"
+        count:
+          type: "integer"
+
+  - path: "/current-show"
+    method: "GET"
+    name: "get_current_show"
+    description: "Get information about the currently airing show"
+    response_schema:
+      type: "object"
+      properties:
+        success:
+          type: "boolean"
+        data:
+          type: "object"
+          properties:
+            id:
+              type: "integer"
+            program_name:
+              type: "string"
+            host_names:
+              type: "array"
+              items:
+                type: "string"
+            start_time:
+              type: "string"
+            tagline:
+              type: "string"
+            program_tags:
+              type: "string"
+
+  - path: "/play/{id}"
+    method: "GET"
+    name: "get_play_by_id"
+    description: "Get detailed information about a specific play"
+    parameters:
+      - name: "id"
+        in: "path"
+        type: "integer"
+        description: "Play ID"
+        required: true
+    response_schema:
+      type: "object"
+      properties:
+        success:
+          type: "boolean"
+        data:
+          type: "object"
+
+  - path: "/host/{id}"
+    method: "GET"
+    name: "get_host_by_id"
+    description: "Get detailed information about a specific host"
+    parameters:
+      - name: "id"
+        in: "path"
+        type: "integer"
+        description: "Host ID"
+        required: true
+    response_schema:
+      type: "object"
+      properties:
+        success:
+          type: "boolean"
+        data:
+          type: "object"
+
+  - path: "/show/{id}"
+    method: "GET"
+    name: "get_show_by_id"
+    description: "Get detailed information about a specific show"
+    parameters:
+      - name: "id"
+        in: "path"
+        type: "integer"
+        description: "Show ID"
+        required: true
+    response_schema:
+      type: "object"
+      properties:
+        success:
+          type: "boolean"
+        data:
+          type: "object"
+
+  - path: "/program/{id}"
+    method: "GET"
+    name: "get_program_by_id"
+    description: "Get detailed information about a specific program"
+    parameters:
+      - name: "id"
+        in: "path"
+        type: "integer"
+        description: "Program ID"
+        required: true
+    response_schema:
+      type: "object"
+      properties:
+        success:
+          type: "boolean"
+        data:
+          type: "object"
+
+health_check:
+  path: "/health"
+  method: "GET"
+  expected_status: 200

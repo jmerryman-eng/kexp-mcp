@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "kexp": {
+      "command": "node",
+      "args": ["/Users/jmerryman/Desktop/Prototypes/KEXP_MCP/build/index.js"]
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:api.kexp.org)",
+      "WebSearch",
+      "Bash(curl -s \"https://api.kexp.org/v2/\")",
+      "Bash(curl -s \"https://api.kexp.org/v2/plays/?limit=1\")",
+      "Bash(curl -s \"https://api.kexp.org/v2/hosts/?limit=1\")",
+      "Bash(curl -s \"https://api.kexp.org/v2/shows/?limit=1\")",
+      "Bash(npm install)",
+      "Bash(npm run build)",
+      "Bash(node build/index.js --help)",
+      "Bash(node test.js)",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(curl -s http://localhost:3000/current)",
+      "Bash(curl -s \"http://localhost:3000/recent?limit=3\")",
+      "Bash(curl -s \"http://localhost:3000/search?q=radiohead&limit=2\")",
+      "WebFetch(domain:kexpmcpserver-production.up.railway.app)",
+      "Bash(curl -s https://kexpmcpserver-production.up.railway.app/)",
+      "Bash(curl -s https://kexpmcpserver-production.up.railway.app/api)",
+      "Bash(curl -s https://kexpmcpserver-production.up.railway.app/health)",
+      "Bash(curl -s -X POST https://kexpmcpserver-production.up.railway.app/mcp -H \"Content-Type: application/json\" -d '{\"\"\"\"jsonrpc\"\"\"\": \"\"\"\"2.0\"\"\"\", \"\"\"\"id\"\"\"\": 1, \"\"\"\"method\"\"\"\": \"\"\"\"tools/list\"\"\"\"}')",
+      "Bash(curl -s -X POST https://kexpmcpserver-production.up.railway.app/mcp -H \"Content-Type: application/json\" -d '{\"\"\"\"jsonrpc\"\"\"\": \"\"\"\"2.0\"\"\"\", \"\"\"\"id\"\"\"\": 1, \"\"\"\"method\"\"\"\": \"\"\"\"initialize\"\"\"\", \"\"\"\"params\"\"\"\": {\"\"\"\"protocolVersion\"\"\"\": \"\"\"\"2024-11-05\"\"\"\", \"\"\"\"capabilities\"\"\"\": {}}}')",
+      "Bash(curl -s -H \"Accept: application/json\" https://kexpmcpserver-production.up.railway.app/mcp)",
+      "Bash(git init)",
+      "Bash(git add .)",
+      "Bash(git reset)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

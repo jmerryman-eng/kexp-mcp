@@ -1,0 +1,20 @@
+name: kexp-mcp-server
+services:
+- name: api
+  source_dir: /
+  github:
+    repo: your-username/kexp-mcp-server
+    branch: main
+  run_command: npm run http
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  envs:
+  - key: NODE_ENV
+    value: production
+  - key: PORT
+    value: "3000"
+  health_check:
+    http_path: /health
+  routes:
+  - path: /
