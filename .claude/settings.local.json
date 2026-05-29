@@ -43,7 +43,19 @@
       "Bash(curl -s \"https://kexp-mcp-server-production-990e.up.railway.app/recent?limit=3\")",
       "Bash(curl -s \"https://kexp-mcp-server-production-990e.up.railway.app/search?q=radiohead&limit=2\")",
       "Bash(curl -v https://kexp-mcp-server-production-990e.up.railway.app/current)",
-      "Bash(curl -s -X POST http://localhost:3000/mcp )"
+      "Bash(curl -s -X POST http://localhost:3000/mcp )",
+      "Bash(git commit -m \"Add MCP JSON-RPC endpoint for Claude connectors\n\n- Add POST /mcp endpoint that handles JSON-RPC protocol\n- Supports tools/list and tools/call methods  \n- Returns proper JSON-RPC 2.0 responses\n- Includes 3 MCP tools: get_current_play, get_recent_plays, search_plays\n- Now Claude connectors can use: https://your-domain.com/mcp\n\n✅ MCP endpoint tested and working locally!\")",
+      "Bash(curl -s -X POST https://kexp-mcp-server-production-990e.up.railway.app/mcp -H \"Content-Type: application/json\" -d '{\"\"\"\"jsonrpc\"\"\"\": \"\"\"\"2.0\"\"\"\", \"\"\"\"id\"\"\"\": 1, \"\"\"\"method\"\"\"\": \"\"\"\"tools/list\"\"\"\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/mcp -H \"Content-Type: application/json\" -d '{\"\"jsonrpc\"\": \"\"2.0\"\", \"\"id\"\": 1, \"\"method\"\": \"\"initialize\"\", \"\"params\"\": {\"\"protocolVersion\"\": \"\"2024-11-05\"\", \"\"capabilities\"\": {}}}')",
+      "Bash(curl -v -X POST http://localhost:3000/mcp)",
+      "Bash(npm start)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm view @modelcontextprotocol/sdk@0.4.0 --json)",
+      "Bash(pkill -f \"node build/http-server.js\")",
+      "Bash(npm run http)",
+      "Bash(curl -v \"http://localhost:3000/mcp\" -H \"Accept: text/event-stream\")",
+      "Bash(curl -s -X POST \"http://localhost:3000/mcp/messages?sessionId=aed628a8-45a5-4937-84f1-5f5268b057e5\" -H \"Content-Type: application/json\" -d '{\"\"jsonrpc\"\": \"\"2.0\"\", \"\"id\"\": 1, \"\"method\"\": \"\"initialize\"\", \"\"params\"\": {\"\"protocolVersion\"\": \"\"2024-11-05\"\", \"\"capabilities\"\": {}}}')",
+      "Bash(timeout 3 curl -s \"http://localhost:3000/mcp\")"
     ],
     "deny": [],
     "ask": []
