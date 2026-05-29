@@ -1,0 +1,77 @@
+openapi: 3.0.0
+info:
+  title: KEXP Radio API
+  description: KEXP radio data - NO AUTHENTICATION REQUIRED
+  version: 1.0.0
+servers:
+  - url: https://kexp-mcp-server-production-990e.up.railway.app
+    description: Production server
+components:
+  securitySchemes: {}
+security: []
+paths:
+  /current:
+    get:
+      summary: Get currently playing track
+      description: Get the track currently playing on KEXP
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+  /recent:
+    get:
+      summary: Get recent plays
+      description: Get recently played tracks
+      security: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+  /search:
+    get:
+      summary: Search tracks
+      description: Search for tracks by artist/song/album
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+  /health:
+    get:
+      summary: Health check
+      description: Check if the server is running
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object

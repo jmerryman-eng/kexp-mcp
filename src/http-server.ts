@@ -2,6 +2,12 @@
 
 import express from 'express';
 import cors from 'cors';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+  Tool,
+} from '@modelcontextprotocol/sdk/types.js';
 import { KexpClient } from './kexp-client.js';
 
 const app = express();
@@ -10,6 +16,294 @@ const kexpClient = new KexpClient();
 
 app.use(cors());
 app.use(express.json());
+
+// MCP Server setup
+const mcpServer = new Server({
+  name: 'kexp-mcp-server',
+  version: '1.0.0',
+});
+
+const tools: Tool[] = [
+  {
+    name: 'get_current_play',
+    description: 'Get the currently playing track on KEXP',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'get_recent_plays',
+    description: 'Get recently played tracks on KEXP',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: {
+          type: 'number',
+          description: 'Number of recent plays to fetch (default: 10, max: 100)',
+          minimum: 1,
+          maximum: 100,
+        },
+      },
+    },
+  },
+  {
+    name: 'search_plays',
+    description: 'Search for played tracks by artist, song, or album',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Search query for artist, song, or album',
+        },
+        limit: {
+          type: 'number',
+          description: 'Number of results to return (default: 10, max: 50)',
+          minimum: 1,
+          maximum: 50,
+        },
+      },
+      required: ['query'],
+    },
+  },
+];
+
+mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
+  return { tools };
+});
+
+mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+
+  try {
+    switch (name) {
+      case 'get_current_play': {
+        const currentPlay = await kexpClient.getCurrentPlay();
+        if (!currentPlay) {
+          return {
+            content: [{ type: 'text', text: 'No current play information available' }],
+          };
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Currently playing on KEXP:\n\n**${currentPlay.artist}** - "${currentPlay.song}"\n${currentPlay.album ? `Album: ${currentPlay.album}\n` : ''}Aired: ${new Date(currentPlay.airdate).toLocaleString()}\n${currentPlay.rotation_status ? `Rotation: ${currentPlay.rotation_status}\n` : ''}${currentPlay.comment ? `\nComment: ${currentPlay.comment}` : ''}`,
+            },
+          ],
+        };
+      }
+
+      case 'get_recent_plays': {
+        const limit = Math.min((args?.limit as number) || 10, 100);
+        const recentPlays = await kexpClient.getRecentPlays(limit);
+        
+        if (recentPlays.length === 0) {
+          return {
+            content: [{ type: 'text', text: 'No recent plays found' }],
+          };
+        }
+
+        const playsList = recentPlays.map((play, index) => 
+          `${index + 1}. **${play.artist}** - "${play.song}"${play.album ? ` (${play.album})` : ''}\n   Aired: ${new Date(play.airdate).toLocaleString()}`
+        ).join('\n\n');
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Recent plays on KEXP (${recentPlays.length} tracks):\n\n${playsList}`,
+            },
+          ],
+        };
+      }
+
+      case 'search_plays': {
+        const query = args?.query as string;
+        if (!query) {
+          throw new Error('Query parameter is required');
+        }
+        
+        const limit = Math.min((args?.limit as number) || 10, 50);
+        const searchResults = await kexpClient.searchPlays(query, limit);
+        
+        if (searchResults.length === 0) {
+          return {
+            content: [{ type: 'text', text: `No plays found for query: "${query}"` }],
+          };
+        }
+
+        const resultsList = searchResults.map((play, index) => 
+          `${index + 1}. **${play.artist}** - "${play.song}"${play.album ? ` (${play.album})` : ''}\n   Aired: ${new Date(play.airdate).toLocaleString()}\n   ID: ${play.id}`
+        ).join('\n\n');
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Search results for "${query}" (${searchResults.length} tracks):\n\n${resultsList}`,
+            },
+          ],
+        };
+      }
+
+      default:
+        throw new Error(`Unknown tool: ${name}`);
+    }
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
+        },
+      ],
+      isError: true,
+    };
+  }
+});
+
+// MCP JSON-RPC endpoint
+app.post('/mcp', async (req, res) => {
+  try {
+    const request = req.body;
+    
+    // Handle JSON-RPC requests
+    if (request.method === 'tools/list') {
+      res.json({
+        jsonrpc: '2.0',
+        id: request.id,
+        result: { tools },
+      });
+    } else if (request.method === 'tools/call') {
+      const { name, arguments: args } = request.params;
+      
+      // Handle tool calls (same logic as MCP handler above)
+      let result;
+      try {
+        switch (name) {
+          case 'get_current_play': {
+            const currentPlay = await kexpClient.getCurrentPlay();
+            if (!currentPlay) {
+              result = {
+                content: [{ type: 'text', text: 'No current play information available' }],
+              };
+            } else {
+              result = {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Currently playing on KEXP:\n\n**${currentPlay.artist}** - "${currentPlay.song}"\n${currentPlay.album ? `Album: ${currentPlay.album}\n` : ''}Aired: ${new Date(currentPlay.airdate).toLocaleString()}\n${currentPlay.rotation_status ? `Rotation: ${currentPlay.rotation_status}\n` : ''}${currentPlay.comment ? `\nComment: ${currentPlay.comment}` : ''}`,
+                  },
+                ],
+              };
+            }
+            break;
+          }
+
+          case 'get_recent_plays': {
+            const limit = Math.min((args?.limit as number) || 10, 100);
+            const recentPlays = await kexpClient.getRecentPlays(limit);
+            
+            if (recentPlays.length === 0) {
+              result = {
+                content: [{ type: 'text', text: 'No recent plays found' }],
+              };
+            } else {
+              const playsList = recentPlays.map((play, index) => 
+                `${index + 1}. **${play.artist}** - "${play.song}"${play.album ? ` (${play.album})` : ''}\n   Aired: ${new Date(play.airdate).toLocaleString()}`
+              ).join('\n\n');
+
+              result = {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Recent plays on KEXP (${recentPlays.length} tracks):\n\n${playsList}`,
+                  },
+                ],
+              };
+            }
+            break;
+          }
+
+          case 'search_plays': {
+            const query = args?.query as string;
+            if (!query) {
+              throw new Error('Query parameter is required');
+            }
+            
+            const limit = Math.min((args?.limit as number) || 10, 50);
+            const searchResults = await kexpClient.searchPlays(query, limit);
+            
+            if (searchResults.length === 0) {
+              result = {
+                content: [{ type: 'text', text: `No plays found for query: "${query}"` }],
+              };
+            } else {
+              const resultsList = searchResults.map((play, index) => 
+                `${index + 1}. **${play.artist}** - "${play.song}"${play.album ? ` (${play.album})` : ''}\n   Aired: ${new Date(play.airdate).toLocaleString()}\n   ID: ${play.id}`
+              ).join('\n\n');
+
+              result = {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Search results for "${query}" (${searchResults.length} tracks):\n\n${resultsList}`,
+                  },
+                ],
+              };
+            }
+            break;
+          }
+
+          default:
+            throw new Error(`Unknown tool: ${name}`);
+        }
+
+        res.json({
+          jsonrpc: '2.0',
+          id: request.id,
+          result,
+        });
+
+      } catch (error) {
+        res.json({
+          jsonrpc: '2.0',
+          id: request.id,
+          result: {
+            content: [
+              {
+                type: 'text',
+                text: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
+              },
+            ],
+            isError: true,
+          },
+        });
+      }
+    } else {
+      res.status(400).json({
+        jsonrpc: '2.0',
+        id: request.id || null,
+        error: {
+          code: -32601,
+          message: 'Method not found',
+        },
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      jsonrpc: '2.0',
+      id: req.body?.id || null,
+      error: {
+        code: -32000,
+        message: error instanceof Error ? error.message : 'Internal error',
+      },
+    });
+  }
+});
 
 // Root endpoint with API documentation
 app.get('/', (req, res) => {
@@ -27,7 +321,8 @@ app.get('/', (req, res) => {
       'GET /play/:id': 'Get play details by ID',
       'GET /host/:id': 'Get host details by ID',
       'GET /show/:id': 'Get show details by ID',
-      'GET /program/:id': 'Get program details by ID'
+      'GET /program/:id': 'Get program details by ID',
+      'POST /mcp': 'MCP JSON-RPC endpoint for Claude connectors'
     },
     examples: {
       current: '/current',

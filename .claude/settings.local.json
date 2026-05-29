@@ -35,7 +35,15 @@
       "Bash(git add Dockerfile railway.toml)",
       "Bash(git commit -m \"Fix TypeScript build in Docker deployment\n\n- Install all dependencies including dev for building TypeScript\n- Build project with tsc, then remove dev dependencies \n- Update Railway config with NODE_ENV setting\n- Ensures TypeScript compiler is available during build phase\n\nFixes ''tsc: not found'' build errors on Railway.\")",
       "Bash(curl -s http://localhost:3000/health)",
-      "Bash(curl -s \"http://localhost:3000/recent?limit=2\")"
+      "Bash(curl -s \"http://localhost:3000/recent?limit=2\")",
+      "Bash(git commit -m \"Fix Claude connector authentication issue\n\n- Add explicit ''authentication: none'' to connector configs\n- Create proper OpenAPI 3.0 schema (claude-connector.yaml)\n- Add comprehensive Claude connector setup guide\n- Clarify that KEXP API requires no authentication\n\nFixes ''Couldn''t register with KEXP V2 sign-in service'' error.\nIssue was Claude assuming OAuth when API is public.\")",
+      "Bash(curl -s https://kexp-mcp-server-production-990e.up.railway.app/)",
+      "Bash(curl -s https://kexp-mcp-server-production-990e.up.railway.app/current)",
+      "Bash(curl -s https://kexp-mcp-server-production-990e.up.railway.app/health)",
+      "Bash(curl -s \"https://kexp-mcp-server-production-990e.up.railway.app/recent?limit=3\")",
+      "Bash(curl -s \"https://kexp-mcp-server-production-990e.up.railway.app/search?q=radiohead&limit=2\")",
+      "Bash(curl -v https://kexp-mcp-server-production-990e.up.railway.app/current)",
+      "Bash(curl -s -X POST http://localhost:3000/mcp )"
     ],
     "deny": [],
     "ask": []

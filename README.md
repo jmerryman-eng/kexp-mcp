@@ -335,6 +335,15 @@ For hosted servers, update your Claude Desktop config:
 }
 ```
 
+### ✅ Production Server Available
+
+**Live Railway Deployment**: `https://kexp-mcp-server-production-990e.up.railway.app`
+
+Test endpoints:
+- Current play: https://kexp-mcp-server-production-990e.up.railway.app/current
+- Health check: https://kexp-mcp-server-production-990e.up.railway.app/health
+- API docs: https://kexp-mcp-server-production-990e.up.railway.app/
+
 ### 🛡️ Security Considerations
 
 - **API Rate Limiting**: Implement rate limiting for production

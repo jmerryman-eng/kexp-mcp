@@ -1,0 +1,248 @@
+openapi: 3.0.0
+info:
+  title: KEXP Radio API (Production)
+  description: Access KEXP radio data including current plays, recent tracks, hosts, programs, and shows
+  version: 1.0.0
+servers:
+  - url: https://kexp-mcp-server-production-990e.up.railway.app
+    description: Production Railway deployment
+security: []
+
+paths:
+  /:
+    get:
+      summary: API Documentation
+      description: Get API documentation and available endpoints
+      operationId: getApiDocs
+      responses:
+        200:
+          description: API documentation
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /current:
+    get:
+      summary: Get Currently Playing Track
+      description: Get the track currently playing on KEXP
+      operationId: getCurrentPlay
+      responses:
+        200:
+          description: Currently playing track
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      song:
+                        type: string
+                        description: Song title
+                      artist:
+                        type: string
+                        description: Artist name
+                      album:
+                        type: string
+                        description: Album name
+                      airdate:
+                        type: string
+                        description: When the track aired
+                      image_uri:
+                        type: string
+                        description: Album cover image URL
+                      rotation_status:
+                        type: string
+                        description: Rotation status (Heavy, Medium, Light, Library)
+                      is_local:
+                        type: boolean
+                        description: Is this a local Seattle artist
+                      is_request:
+                        type: boolean
+                        description: Was this track requested by a listener
+
+  /recent:
+    get:
+      summary: Get Recent Plays
+      description: Get recently played tracks on KEXP
+      operationId: getRecentPlays
+      parameters:
+        - name: limit
+          in: query
+          description: Number of tracks to return (1-100, default 10)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        200:
+          description: Recent plays
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  count:
+                    type: integer
+
+  /search:
+    get:
+      summary: Search Tracks
+      description: Search for tracks by artist, song, or album
+      operationId: searchPlays
+      parameters:
+        - name: q
+          in: query
+          description: Search query for artist, song, or album
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Number of results to return (1-50, default 10)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        200:
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  query:
+                    type: string
+                  data:
+                    type: array
+                  count:
+                    type: integer
+
+  /hosts:
+    get:
+      summary: Get KEXP Hosts
+      description: Get KEXP radio hosts
+      operationId: getHosts
+      parameters:
+        - name: limit
+          in: query
+          description: Number of hosts to return (1-100, default 20)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: active
+          in: query
+          description: Only return active hosts (default true)
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        200:
+          description: KEXP hosts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                  count:
+                    type: integer
+
+  /programs:
+    get:
+      summary: Get KEXP Programs
+      description: Get KEXP radio programs
+      operationId: getPrograms
+      parameters:
+        - name: limit
+          in: query
+          description: Number of programs to return (1-100, default 20)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: active
+          in: query
+          description: Only return active programs (default true)
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        200:
+          description: KEXP programs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                  count:
+                    type: integer
+
+  /current-show:
+    get:
+      summary: Get Current Show
+      description: Get information about the currently airing show
+      operationId: getCurrentShow
+      responses:
+        200:
+          description: Current show information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /health:
+    get:
+      summary: Health Check
+      description: Check server health status
+      operationId: healthCheck
+      responses:
+        200:
+          description: Server health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  status:
+                    type: string
+                  timestamp:
+                    type: string

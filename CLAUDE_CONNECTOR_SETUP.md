@@ -78,8 +78,19 @@ security: []  # ← This means NO authentication required
 
 ## 🔄 Alternative: Use Deployed Version
 
-If you've deployed to Railway/Vercel/etc, use that URL instead:
-- **Base URL**: `https://your-app.railway.app`
+### ✅ Production Railway Server (Ready Now!)
+- **Base URL**: `https://kexp-mcp-server-production-990e.up.railway.app`
+- **Authentication**: **None**
+- **API Schema**: Upload `claude-connector-production.yaml`
+- **Status**: ✅ Live and tested!
+
+Test the production API:
+- https://kexp-mcp-server-production-990e.up.railway.app/current
+- https://kexp-mcp-server-production-990e.up.railway.app/health
+
+### Other Deployments
+If you've deployed to other platforms, use that URL instead:
+- **Base URL**: `https://your-app.vercel.app` (or other)
 - **Authentication**: **None**
 - Rest of setup is the same
 
