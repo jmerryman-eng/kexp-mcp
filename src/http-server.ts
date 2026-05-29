@@ -2,14 +2,9 @@
 
 import express from 'express';
 import cors from 'cors';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  Tool,
-} from '@modelcontextprotocol/sdk/types.js';
 import { KexpClient } from './kexp-client.js';
+import { createKexpMcpServer } from './mcp-server.js';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -18,165 +13,18 @@ const kexpClient = new KexpClient();
 app.use(cors());
 app.use(express.json());
 
-// MCP Server setup  
-const mcpServer = new Server({
-  name: 'kexp-mcp-server',
-  version: '1.0.0',
-}, {
-  capabilities: {
-    tools: {}
-  }
-});
-
-// StreamableHTTPServerTransport uses stateless pattern
-
-const tools: Tool[] = [
-  {
-    name: 'get_current_play',
-    description: 'Get the currently playing track on KEXP',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-    },
-  },
-  {
-    name: 'get_recent_plays',
-    description: 'Get recently played tracks on KEXP',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        limit: {
-          type: 'number',
-          description: 'Number of recent plays to fetch (default: 10, max: 100)',
-          minimum: 1,
-          maximum: 100,
-        },
-      },
-    },
-  },
-  {
-    name: 'search_plays',
-    description: 'Search for played tracks by artist, song, or album',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        query: {
-          type: 'string',
-          description: 'Search query for artist, song, or album',
-        },
-        limit: {
-          type: 'number',
-          description: 'Number of results to return (default: 10, max: 50)',
-          minimum: 1,
-          maximum: 50,
-        },
-      },
-      required: ['query'],
-    },
-  },
-];
-
-mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
-  return { tools };
-});
-
-mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  try {
-    switch (name) {
-      case 'get_current_play': {
-        const currentPlay = await kexpClient.getCurrentPlay();
-        if (!currentPlay) {
-          return {
-            content: [{ type: 'text', text: 'No current play information available' }],
-          };
-        }
-        
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Currently playing on KEXP:\n\n**${currentPlay.artist}** - "${currentPlay.song}"\n${currentPlay.album ? `Album: ${currentPlay.album}\n` : ''}Aired: ${new Date(currentPlay.airdate).toLocaleString()}\n${currentPlay.rotation_status ? `Rotation: ${currentPlay.rotation_status}\n` : ''}${currentPlay.comment ? `\nComment: ${currentPlay.comment}` : ''}`,
-            },
-          ],
-        };
-      }
-
-      case 'get_recent_plays': {
-        const limit = Math.min((args?.limit as number) || 10, 100);
-        const recentPlays = await kexpClient.getRecentPlays(limit);
-        
-        if (recentPlays.length === 0) {
-          return {
-            content: [{ type: 'text', text: 'No recent plays found' }],
-          };
-        }
-
-        const playsList = recentPlays.map((play, index) => 
-          `${index + 1}. **${play.artist}** - "${play.song}"${play.album ? ` (${play.album})` : ''}\n   Aired: ${new Date(play.airdate).toLocaleString()}`
-        ).join('\n\n');
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Recent plays on KEXP (${recentPlays.length} tracks):\n\n${playsList}`,
-            },
-          ],
-        };
-      }
-
-      case 'search_plays': {
-        const query = args?.query as string;
-        if (!query) {
-          throw new Error('Query parameter is required');
-        }
-        
-        const limit = Math.min((args?.limit as number) || 10, 50);
-        const searchResults = await kexpClient.searchPlays(query, limit);
-        
-        if (searchResults.length === 0) {
-          return {
-            content: [{ type: 'text', text: `No plays found for query: "${query}"` }],
-          };
-        }
-
-        const resultsList = searchResults.map((play, index) => 
-          `${index + 1}. **${play.artist}** - "${play.song}"${play.album ? ` (${play.album})` : ''}\n   Aired: ${new Date(play.airdate).toLocaleString()}\n   ID: ${play.id}`
-        ).join('\n\n');
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Search results for "${query}" (${searchResults.length} tracks):\n\n${resultsList}`,
-            },
-          ],
-        };
-      }
-
-      default:
-        throw new Error(`Unknown tool: ${name}`);
-    }
-  } catch (error) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
-        },
-      ],
-      isError: true,
-    };
-  }
-});
-
-// MCP Streamable HTTP transport endpoint
+// MCP Streamable HTTP transport endpoint.
+// Stateless pattern: a fresh Server + transport per request so concurrent
+// connectors never share connection state. All 11 tools are defined in
+// ./mcp-server.ts and shared with the stdio server (index.ts).
 app.post('/mcp', async (req, res) => {
   try {
+    const mcpServer = createKexpMcpServer();
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    res.on('close', () => transport.close());
+    res.on('close', () => {
+      transport.close();
+      mcpServer.close();
+    });
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res, req.body);
   } catch (e) {

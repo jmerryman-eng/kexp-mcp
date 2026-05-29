@@ -10,6 +10,15 @@ import {
   KexpApiClient
 } from './types.js';
 
+/**
+ * KEXP interleaves non-track records (e.g. `play_type: "airbreak"`) into the
+ * plays feed with null artist/song. The API ignores `play_type`/`search`
+ * filters, so we guard for real tracks client-side.
+ */
+function isTrackPlay(play: KexpPlay): boolean {
+  return !!play.artist && !!play.song;
+}
+
 export class KexpClient implements KexpApiClient {
   private baseUrl = 'https://api.kexp.org/v2';
 
@@ -55,11 +64,13 @@ export class KexpClient implements KexpApiClient {
 
   async getCurrentPlay(): Promise<KexpPlay | null> {
     try {
-      const response = await this.getPlays({ 
-        limit: 1, 
-        ordering: '-airdate' 
+      // Over-fetch a small window: the newest record may be an airbreak, so
+      // return the most recent actual track instead of "undefined - undefined".
+      const response = await this.getPlays({
+        limit: 5,
+        ordering: '-airdate'
       });
-      return response.results[0] || null;
+      return response.results.find(isTrackPlay) || null;
     } catch (error) {
       console.error('Error fetching current play:', error);
       return null;
@@ -68,11 +79,13 @@ export class KexpClient implements KexpApiClient {
 
   async getRecentPlays(limit: number = 10): Promise<KexpPlay[]> {
     try {
-      const response = await this.getPlays({ 
-        limit, 
-        ordering: '-airdate' 
+      // Over-fetch to compensate for airbreaks filtered out below, so the
+      // caller still gets close to `limit` real tracks.
+      const response = await this.getPlays({
+        limit: Math.min(limit + 20, 100),
+        ordering: '-airdate'
       });
-      return response.results;
+      return response.results.filter(isTrackPlay).slice(0, limit);
     } catch (error) {
       console.error('Error fetching recent plays:', error);
       return [];
@@ -81,7 +94,7 @@ export class KexpClient implements KexpApiClient {
 
   async getPlayById(id: number): Promise<KexpPlay | null> {
     try {
-      return this.makeRequest<KexpPlay>(`/plays/${id}/`);
+      return await this.makeRequest<KexpPlay>(`/plays/${id}/`);
     } catch (error) {
       console.error(`Error fetching play ${id}:`, error);
       return null;
@@ -90,7 +103,7 @@ export class KexpClient implements KexpApiClient {
 
   async getHostById(id: number): Promise<KexpHost | null> {
     try {
-      return this.makeRequest<KexpHost>(`/hosts/${id}/`);
+      return await this.makeRequest<KexpHost>(`/hosts/${id}/`);
     } catch (error) {
       console.error(`Error fetching host ${id}:`, error);
       return null;
@@ -99,7 +112,7 @@ export class KexpClient implements KexpApiClient {
 
   async getShowById(id: number): Promise<KexpShow | null> {
     try {
-      return this.makeRequest<KexpShow>(`/shows/${id}/`);
+      return await this.makeRequest<KexpShow>(`/shows/${id}/`);
     } catch (error) {
       console.error(`Error fetching show ${id}:`, error);
       return null;
@@ -108,7 +121,7 @@ export class KexpClient implements KexpApiClient {
 
   async getProgramById(id: number): Promise<KexpProgram | null> {
     try {
-      return this.makeRequest<KexpProgram>(`/programs/${id}/`);
+      return await this.makeRequest<KexpProgram>(`/programs/${id}/`);
     } catch (error) {
       console.error(`Error fetching program ${id}:`, error);
       return null;
@@ -117,12 +130,29 @@ export class KexpClient implements KexpApiClient {
 
   async searchPlays(query: string, limit: number = 10): Promise<KexpPlay[]> {
     try {
-      const response = await this.getPlays({ 
-        limit, 
-        search: query,
-        ordering: '-airdate' 
-      });
-      return response.results;
+      // The KEXP API has no generic `search` param (it silently ignores it),
+      // but supports case-insensitive partial-match `artist`/`song`/`album`
+      // filters. Query each and merge so a single term searches all three.
+      const responses = await Promise.all(
+        (['artist', 'song', 'album'] as const).map(field =>
+          this.getPlays({ limit, ordering: '-airdate', [field]: query })
+            .catch(() => ({ results: [] } as unknown as PaginatedResponse<KexpPlay>))
+        )
+      );
+
+      const seen = new Set<number>();
+      const merged: KexpPlay[] = [];
+      for (const response of responses) {
+        for (const play of response.results) {
+          if (isTrackPlay(play) && !seen.has(play.id)) {
+            seen.add(play.id);
+            merged.push(play);
+          }
+        }
+      }
+
+      merged.sort((a, b) => new Date(b.airdate).getTime() - new Date(a.airdate).getTime());
+      return merged.slice(0, limit);
     } catch (error) {
       console.error('Error searching plays:', error);
       return [];
