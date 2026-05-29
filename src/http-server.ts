@@ -3,7 +3,7 @@
 import express from 'express';
 import cors from 'cors';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -18,14 +18,17 @@ const kexpClient = new KexpClient();
 app.use(cors());
 app.use(express.json());
 
-// MCP Server setup
+// MCP Server setup  
 const mcpServer = new Server({
   name: 'kexp-mcp-server',
   version: '1.0.0',
+}, {
+  capabilities: {
+    tools: {}
+  }
 });
 
-// Track transports by session ID
-const transports: { [sessionId: string]: SSEServerTransport } = {};
+// StreamableHTTPServerTransport uses stateless pattern
 
 const tools: Tool[] = [
   {
@@ -169,31 +172,34 @@ mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-// MCP SSE endpoint - establishes the connection
-app.get('/mcp', async (req, res) => {
-  const transport = new SSEServerTransport('/mcp/messages', res);
-  transports[transport.sessionId] = transport;
-  
-  // Clean up on close
-  res.on('close', () => {
-    delete transports[transport.sessionId];
-  });
-  
-  // Connect server to transport (this automatically calls transport.start())
-  await mcpServer.connect(transport);
-});
-
-// MCP POST endpoint for receiving messages
-app.post('/mcp/messages', async (req, res) => {
-  const sessionId = req.query.sessionId as string;
-  const transport = transports[sessionId];
-  
-  if (transport) {
-    await transport.handlePostMessage(req, res);
-  } else {
-    res.status(400).json({ error: 'No transport found for sessionId' });
+// MCP Streamable HTTP transport endpoint
+app.post('/mcp', async (req, res) => {
+  try {
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    res.on('close', () => transport.close());
+    await mcpServer.connect(transport);
+    await transport.handleRequest(req, res, req.body);
+  } catch (e) {
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        jsonrpc: '2.0', 
+        error: { code: -32603, message: 'Internal server error' }, 
+        id: null 
+      });
+    }
   }
 });
+
+// Method not allowed for GET and DELETE on /mcp
+const notAllowed = (_req: any, res: any) =>
+  res.status(405).json({ 
+    jsonrpc: '2.0', 
+    error: { code: -32000, message: 'Method not allowed.' }, 
+    id: null 
+  });
+
+app.get('/mcp', notAllowed);
+app.delete('/mcp', notAllowed);
 
 // Root endpoint with API documentation
 app.get('/', (req, res) => {
@@ -212,8 +218,7 @@ app.get('/', (req, res) => {
       'GET /host/:id': 'Get host details by ID',
       'GET /show/:id': 'Get show details by ID',
       'GET /program/:id': 'Get program details by ID',
-      'GET /mcp': 'MCP SSE endpoint for Claude connectors',
-      'POST /mcp/messages': 'MCP JSON-RPC endpoint for Claude connectors'
+      'POST /mcp': 'MCP Streamable HTTP endpoint for Claude connectors'
     },
     examples: {
       current: '/current',

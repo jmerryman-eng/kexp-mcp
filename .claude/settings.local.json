@@ -5,7 +5,17 @@
       "Bash(curl -v \"https://kexp-mcp-server-production-990e.up.railway.app/mcp\" -H \"Accept: text/event-stream\")",
       "Bash(curl -s \"https://kexp-mcp-server-production-990e.up.railway.app/\")",
       "Bash(curl -s \"https://kexp-mcp-server-production-990e.up.railway.app/mcp\" -H \"Accept: text/event-stream\")",
-      "Bash(git commit -m \"Update API documentation to reflect actual MCP endpoints\")"
+      "Bash(git commit -m \"Update API documentation to reflect actual MCP endpoints\")",
+      "Bash(curl -s -I \"https://kexp-mcp-server-production-990e.up.railway.app/mcp\")",
+      "Bash(npm view @modelcontextprotocol/sdk@latest version)",
+      "Bash(npm update @modelcontextprotocol/sdk)",
+      "Bash(npm install @modelcontextprotocol/sdk@latest)",
+      "Bash(curl -s \"http://localhost:3000/health\")",
+      "Bash(curl -i -X POST http://localhost:3000/mcp )",
+      "Bash(curl -i \"http://localhost:3000/mcp\" -H \"Accept: text/event-stream\")",
+      "Bash(curl -s \"http://localhost:3000/current\")",
+      "Bash(curl -s -w \"%{http_code}\" \"http://localhost:3000/mcp/messages\")",
+      "Bash(git commit -m \"$(cat <<''EOF''\nMigrate from SSEServerTransport to StreamableHTTPServerTransport\n\nBreaking changes from SDK 0.4.0 → 1.29.0:\n- Replace deprecated SSE transport with modern Streamable HTTP transport\n- Remove GET /mcp SSE endpoint and POST /mcp/messages \n- Add single POST /mcp endpoint for Claude connectors\n- Add 405 Method Not Allowed for GET/DELETE /mcp\n- Update server capabilities declaration for new SDK\n\n✅ Now supports modern MCP Streamable HTTP protocol\n✅ POST /mcp returns proper JSON-RPC initialize response\n✅ All existing REST endpoints preserved\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []
