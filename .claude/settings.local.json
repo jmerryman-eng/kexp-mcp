@@ -24,7 +24,18 @@
       "Bash(curl -s -H \"Accept: application/json\" https://kexpmcpserver-production.up.railway.app/mcp)",
       "Bash(git init)",
       "Bash(git add .)",
-      "Bash(git reset)"
+      "Bash(git reset)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: Complete KEXP MCP Server\n\n- ✨ Dual protocol support (MCP + HTTP REST API)\n- 🛠️ 10 comprehensive tools for KEXP data access\n- 🚀 Multiple deployment configurations (Railway, Vercel, Render, Docker, etc.)\n- 📚 Complete documentation and deployment guides\n- 🔧 TypeScript implementation with full type safety\n- 🌐 CORS support and error handling\n- 📊 Health checks and monitoring ready\n- 🎵 Full KEXP API v2 integration\n\nFeatures:\n- Current play tracking\n- Recent plays with configurable limits\n- Search functionality\n- Host and program information\n- Show details and metadata\n- ID-based detailed lookups\n\n🤖 Generated with Claude Code\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git remote add origin git@github.com:jmerryman-eng/kexp-mcp.git)",
+      "Bash(git branch -M main)",
+      "Bash(git push -u origin main)",
+      "Bash(git add package-lock.json .gitignore Dockerfile)",
+      "Bash(git commit -m \"Fix Railway deployment: Include package-lock.json and update Dockerfile\n\n- Include package-lock.json for npm ci compatibility\n- Update Dockerfile to use npm install for better compatibility  \n- Fix .gitignore to allow package-lock.json tracking\n\nFixes Railway auto-deploy build failures.\")",
+      "Bash(git push)",
+      "Bash(git add Dockerfile railway.toml)",
+      "Bash(git commit -m \"Fix TypeScript build in Docker deployment\n\n- Install all dependencies including dev for building TypeScript\n- Build project with tsc, then remove dev dependencies \n- Update Railway config with NODE_ENV setting\n- Ensures TypeScript compiler is available during build phase\n\nFixes ''tsc: not found'' build errors on Railway.\")",
+      "Bash(curl -s http://localhost:3000/health)",
+      "Bash(curl -s \"http://localhost:3000/recent?limit=2\")"
     ],
     "deny": [],
     "ask": []

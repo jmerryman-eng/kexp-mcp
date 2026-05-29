@@ -2,6 +2,8 @@ name: "KEXP Radio API"
 description: "Access KEXP radio data including current plays, recent tracks, hosts, programs, and shows"
 version: "1.0.0"
 base_url: "http://localhost:3000"
+authentication: 
+  type: "none"
 
 endpoints:
   - path: "/current"
