@@ -212,7 +212,8 @@ app.get('/', (req, res) => {
       'GET /host/:id': 'Get host details by ID',
       'GET /show/:id': 'Get show details by ID',
       'GET /program/:id': 'Get program details by ID',
-      'POST /mcp': 'MCP JSON-RPC endpoint for Claude connectors'
+      'GET /mcp': 'MCP SSE endpoint for Claude connectors',
+      'POST /mcp/messages': 'MCP JSON-RPC endpoint for Claude connectors'
     },
     examples: {
       current: '/current',
