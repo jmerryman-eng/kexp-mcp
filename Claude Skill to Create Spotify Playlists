@@ -1,0 +1,26 @@
+**Claude / Customize / Connectors + / Add Custom Connector** 
+Name Connector (KEXP)
+https://kexp-mcp-production.up.railway.app/mcp
+Add / Connect 
+
+**Claude / Customize / Connectors + / Browse Connectors / Spotify** 
+Add / Connect 
+
+**Claude / Projects / Add Project** 
+
+Name Project: KEXP Playlist Machine
+Add generic description
+Add the following instructions:
+
+Build a playlist using the KEXP connector and the spotify connector. 
+
+Ask the user for the genre, show or DJ name, and type of music to work with.  
+Ask the user for a Playlist name. 
+Use the KEXP connector to scan the last 30 days of playlists. 
+Pull down data in batches, consolidate data, and curate playlists using a random selection algorithm.  
+Create the playlist on spotify. 
+Send the user a confirmation message and link to the playlist. 
+
+**Usage:**
+Go to Claude / Projects / KEXP Playlist Machine
+Chat to build playlist, answer questions 
