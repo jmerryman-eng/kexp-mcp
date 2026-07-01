@@ -93,6 +93,25 @@ export interface PaginatedResponse<T> {
   results: T[];
 }
 
+/**
+ * A currently-playing track enriched with the show/host/program context and
+ * the DJ's comment in a single object, so a caller can answer "what's on KEXP
+ * right now?" without chaining ID lookups.
+ */
+export interface NowPlaying {
+  play: KexpPlay;
+  show?: KexpShow | null;
+}
+
+/**
+ * One show in the broadcast-day overview, paired with a small sample of its
+ * plays so the caller can surface DJ comments / editorial mood.
+ */
+export interface TodayContextShow {
+  show: KexpShow;
+  sample_plays: KexpPlay[];
+}
+
 export interface KexpApiClient {
   getPlays(params?: QueryParams): Promise<PaginatedResponse<KexpPlay>>;
   getHosts(params?: QueryParams): Promise<PaginatedResponse<KexpHost>>;

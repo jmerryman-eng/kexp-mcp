@@ -15,8 +15,9 @@ app.use(express.json());
 
 // MCP Streamable HTTP transport endpoint.
 // Stateless pattern: a fresh Server + transport per request so concurrent
-// connectors never share connection state. All 11 tools are defined in
-// ./mcp-server.ts and shared with the stdio server (index.ts).
+// connectors never share connection state. The full toolset is defined once in
+// ./mcp-server.ts (the `tools` array) and shared with the stdio server
+// (index.ts), so both transports always expose the same tools.
 app.post('/mcp', async (req, res) => {
   try {
     const mcpServer = createKexpMcpServer();

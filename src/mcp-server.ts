@@ -7,6 +7,32 @@ import {
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { KexpClient } from './kexp-client.js';
+import { KexpPlay, KexpShow, KexpTimeslot } from './types.js';
+
+/** 1=Mon … 7=Sun, matching the KEXP timeslots `weekday` field. */
+const WEEKDAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/** One play rendered as a markdown list item, surfacing local/request/rotation flags and the DJ comment. */
+function formatPlayLine(play: KexpPlay): string {
+  const flags = [
+    play.is_local ? 'Local' : null,
+    play.is_request ? 'Request' : null,
+    play.is_live ? 'Live' : null,
+    play.rotation_status ? `Rotation: ${play.rotation_status}` : null,
+  ].filter(Boolean).join(' · ');
+  return `**${play.artist}** – "${play.song}"${play.album ? ` (${play.album})` : ''}\n   Aired: ${new Date(play.airdate).toLocaleString()}${flags ? `\n   ${flags}` : ''}${play.comment ? `\n   💬 ${play.comment}` : ''}`;
+}
+
+/** One show rendered as a markdown list item, with hosts and tagline. */
+function formatShowLine(show: KexpShow): string {
+  return `**${show.program_name}** (ID: ${show.id})${show.host_names?.length ? `\n   Hosts: ${show.host_names.join(', ')}` : ''}\n   Started: ${new Date(show.start_time).toLocaleString()}${show.tagline ? `\n   ${show.tagline}` : ''}`;
+}
+
+/** One timeslot rendered as a markdown list item. */
+function formatTimeslotLine(slot: KexpTimeslot): string {
+  const day = WEEKDAY_NAMES[slot.weekday] || `Weekday ${slot.weekday}`;
+  return `**${slot.program_name}** (ID: ${slot.id})\n   ${day} ${slot.start_time}–${slot.end_time}${slot.program_tags ? `\n   Tags: ${slot.program_tags}` : ''}`;
+}
 
 /**
  * Shared KEXP tool definitions and call handler used by both transports
@@ -155,6 +181,167 @@ export const tools: Tool[] = [
           type: 'number',
           description: 'The program ID',
         },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'get_now_playing',
+    description:
+      "Get the song playing on KEXP right now, enriched in one call with the DJ's comment, the current show name, host(s), and tagline. Best entry point for \"what's on KEXP right now?\" — the DJ comment often carries artist backstory, dedications, and session links.",
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'get_today_context',
+    description:
+      "Get a rich picture of what's on KEXP today (Pacific time): every show airing today with its hosts, tagline, and a sample of DJ comments that reveal the editorial themes and mood. Use this first for questions like \"what's on KEXP today?\" — taglines and comments often reveal themed days and special programming not visible in structured fields.",
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'get_new_music',
+    description:
+      'Find music KEXP is currently championing, by rotation status. KEXP\'s live rotation vocabulary is "Heavy" (heaviest airplay — the default and best signal for "what is KEXP pushing right now?"), "Medium", and "Light"; "Add" is accepted for newly-added tracks but is rarely present. Answers "what new music is KEXP excited about?". Limited to the past 30 days.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        rotation_status: {
+          type: 'string',
+          enum: ['Heavy', 'Medium', 'Light', 'Add'],
+          description: '"Heavy" (default) = tracks in heaviest rotation; "Medium"/"Light" = lower rotation; "Add" = newly added (rare).',
+        },
+        artist: { type: 'string', description: 'Optional artist name filter (case-insensitive substring).' },
+        airdate_after: { type: 'string', description: 'ISO 8601 datetime; only plays after this. Must be within the past 30 days.' },
+        airdate_before: { type: 'string', description: 'ISO 8601 datetime; only plays before this. Must be within the past 30 days.' },
+        limit: { type: 'number', description: 'Number of results (default 20, max 50)', minimum: 1, maximum: 50 },
+        offset: { type: 'number', description: 'Results to skip for pagination (default 0)', minimum: 0 },
+      },
+    },
+  },
+  {
+    name: 'get_local_artist_plays',
+    description:
+      'Find plays of Pacific Northwest / local artists on KEXP within the past 30 days. Championing local Seattle & PNW artists is core to KEXP\'s identity. Each result includes the DJ comment and show context. Answers "what local artists has KEXP been playing?".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        artist: { type: 'string', description: 'Optional artist name filter (case-insensitive substring).' },
+        airdate_after: { type: 'string', description: 'ISO 8601 datetime; only plays after this. Must be within the past 30 days.' },
+        airdate_before: { type: 'string', description: 'ISO 8601 datetime; only plays before this. Must be within the past 30 days.' },
+        limit: { type: 'number', description: 'Number of results (default 20, max 50)', minimum: 1, maximum: 50 },
+        offset: { type: 'number', description: 'Results to skip for pagination (default 0)', minimum: 0 },
+      },
+    },
+  },
+  {
+    name: 'get_show_playlist',
+    description:
+      'Get all songs played during a specific KEXP show (by show ID), in airdate order, each with its DJ comment, rotation status, and local/request/live flags. Use to answer "what did [DJ] play last night?" — first find the show ID with search_shows / get_shows_by_host / list_shows.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        show_id: { type: 'number', description: 'The numeric show ID.' },
+        limit: { type: 'number', description: 'Number of results (default 100, max 200)', minimum: 1, maximum: 200 },
+        offset: { type: 'number', description: 'Results to skip for pagination (default 0)', minimum: 0 },
+        include_airbreaks: { type: 'boolean', description: 'Include station-break/non-music segments (default false).' },
+      },
+      required: ['show_id'],
+    },
+  },
+  {
+    name: 'search_shows',
+    description:
+      'Search KEXP show history within the past 30 days by keyword, matching show taglines and program names (case-insensitive). Use for themed/special broadcasts — e.g. "Goth Day", a Bowie tribute. Taglines are DJ-written and often hold context not in any structured field.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        keyword: { type: 'string', description: 'Search term matched against taglines and program names.' },
+        start_time_after: { type: 'string', description: 'ISO 8601 datetime; only shows after this. Must be within the past 30 days.' },
+        start_time_before: { type: 'string', description: 'ISO 8601 datetime; only shows before this. Must be within the past 30 days.' },
+        limit: { type: 'number', description: 'Max results (default 50)', minimum: 1, maximum: 100 },
+      },
+      required: ['keyword'],
+    },
+  },
+  {
+    name: 'get_shows_by_host',
+    description:
+      'Find KEXP shows hosted by a specific DJ within the past 30 days. Accepts a host name (partial, case-insensitive) or a numeric host ID. Answers "what has [DJ] hosted recently?". Filtering is client-side since the shows endpoint has no host filter.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        host_name: { type: 'string', description: 'Host name or partial name (case-insensitive). Provide this or host_id.' },
+        host_id: { type: 'number', description: 'Numeric host ID. Provide this or host_name.' },
+        start_time_after: { type: 'string', description: 'ISO 8601 datetime; only shows after this. Must be within the past 30 days.' },
+        start_time_before: { type: 'string', description: 'ISO 8601 datetime; only shows before this. Must be within the past 30 days.' },
+        limit: { type: 'number', description: 'Number of results (default 20, max 50)', minimum: 1, maximum: 50 },
+        offset: { type: 'number', description: 'Results to skip for pagination (default 0)', minimum: 0 },
+      },
+    },
+  },
+  {
+    name: 'list_plays',
+    description:
+      'List plays with the full set of supported filters: artist, song, album, show_id, airdate range, and ordering. Airbreaks are excluded by default. A richer alternative to get_recent_plays.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        artist: { type: 'string', description: 'Filter by artist (case-insensitive substring).' },
+        song: { type: 'string', description: 'Filter by song title (case-insensitive substring).' },
+        album: { type: 'string', description: 'Filter by album (case-insensitive substring).' },
+        show_id: { type: 'number', description: 'Only plays from this show ID.' },
+        airdate_after: { type: 'string', description: 'ISO 8601 datetime; only plays after this.' },
+        airdate_before: { type: 'string', description: 'ISO 8601 datetime; only plays before this.' },
+        ordering: { type: 'string', description: 'Sort order, e.g. "-airdate" (newest first, default) or "airdate".' },
+        exclude_airbreaks: { type: 'boolean', description: 'Exclude non-music segments (default true).' },
+        limit: { type: 'number', description: 'Number of results (default 20, max 100)', minimum: 1, maximum: 100 },
+        offset: { type: 'number', description: 'Results to skip for pagination (default 0)', minimum: 0 },
+      },
+    },
+  },
+  {
+    name: 'list_shows',
+    description:
+      'List KEXP broadcast episodes (shows). Filter by program ID, host name, and start-time range. program/host filters are applied client-side.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        program: { type: 'number', description: 'Filter by program ID.' },
+        host: { type: 'string', description: 'Filter by host name (case-insensitive substring).' },
+        start_time_after: { type: 'string', description: 'ISO 8601 datetime; only shows after this.' },
+        start_time_before: { type: 'string', description: 'ISO 8601 datetime; only shows before this.' },
+        ordering: { type: 'string', description: 'Sort order, e.g. "-start_time" (newest first, default).' },
+        limit: { type: 'number', description: 'Number of results (default 20, max 50)', minimum: 1, maximum: 50 },
+        offset: { type: 'number', description: 'Results to skip for pagination (default 0)', minimum: 0 },
+      },
+    },
+  },
+  {
+    name: 'get_timeslots',
+    description:
+      'List KEXP weekly schedule timeslots (the recurring grid). Filter by weekday (1=Mon … 7=Sun) or program ID. Use to answer "what normally airs on Tuesday nights?".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        weekday: { type: 'number', description: 'Weekday 1=Mon … 7=Sun.', minimum: 1, maximum: 7 },
+        program: { type: 'number', description: 'Filter by program ID.' },
+        limit: { type: 'number', description: 'Number of results (default 30, max 100)', minimum: 1, maximum: 100 },
+        offset: { type: 'number', description: 'Results to skip for pagination (default 0)', minimum: 0 },
+      },
+    },
+  },
+  {
+    name: 'get_timeslot_by_id',
+    description: 'Get detailed information about a specific weekly timeslot by its ID.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number', description: 'The timeslot ID' },
       },
       required: ['id'],
     },
@@ -415,6 +602,256 @@ export async function handleToolCall(
               text: `Program Details (ID: ${program.id}):\n\n**${program.name}**\n${program.host_names ? `Hosts: ${program.host_names.join(', ')}\n` : ''}Status: ${program.is_active ? 'Active' : 'Inactive'}\n${program.tags ? `Tags: ${program.tags}\n` : ''}${program.tagline ? `\n${program.tagline}` : ''}\n${program.description ? `\nDescription: ${program.description}` : ''}`,
             },
           ],
+        };
+      }
+
+      case 'get_now_playing': {
+        const nowPlaying = await kexpClient.getNowPlaying();
+        if (!nowPlaying) {
+          return { content: [{ type: 'text', text: 'No current play information available' }] };
+        }
+
+        const { play, show } = nowPlaying;
+        const showBlock = show
+          ? `\n\n**Show:** ${show.program_name}${show.host_names?.length ? ` with ${show.host_names.join(', ')}` : ''}${show.tagline ? `\n**Tagline:** ${show.tagline}` : ''}`
+          : '';
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Now playing on KEXP:\n\n**${play.artist}** – "${play.song}"${play.album ? `\nAlbum: ${play.album}` : ''}\nAired: ${new Date(play.airdate).toLocaleString()}${play.rotation_status ? `\nRotation: ${play.rotation_status}` : ''}${play.is_local ? `\nLocal artist: yes` : ''}${play.comment ? `\n\n💬 DJ comment: ${play.comment}` : ''}${showBlock}`,
+            },
+          ],
+        };
+      }
+
+      case 'get_today_context': {
+        const context = await kexpClient.getTodayContext();
+        if (context.length === 0) {
+          return { content: [{ type: 'text', text: 'No shows found for today.' }] };
+        }
+
+        const blocks = context.map(({ show, sample_plays }) => {
+          const comments = sample_plays
+            .filter((p) => p.comment)
+            .slice(0, 2)
+            .map((p) => `   💬 ${p.artist}: ${p.comment}`)
+            .join('\n');
+          return `**${show.program_name}**${show.host_names?.length ? ` with ${show.host_names.join(', ')}` : ''}\n   Started: ${new Date(show.start_time).toLocaleString()}${show.tagline ? `\n   ${show.tagline}` : ''}${comments ? `\n${comments}` : ''}`;
+        }).join('\n\n');
+
+        return {
+          content: [{ type: 'text', text: `KEXP today (${context.length} shows):\n\n${blocks}` }],
+        };
+      }
+
+      case 'get_new_music': {
+        const rotation = (args?.rotation_status as string) || 'Heavy';
+        const plays = await kexpClient.getNewMusic({
+          rotation_status: rotation,
+          artist: args?.artist as string,
+          airdate_after: args?.airdate_after as string,
+          airdate_before: args?.airdate_before as string,
+          limit: Math.min((args?.limit as number) || 20, 50),
+          offset: (args?.offset as number) || 0,
+        });
+
+        if (plays.length === 0) {
+          return { content: [{ type: 'text', text: `No "${rotation}" rotation tracks found in the last 30 days.` }] };
+        }
+
+        const list = plays.map((play, i) => `${i + 1}. ${formatPlayLine(play)}`).join('\n\n');
+        return {
+          content: [{ type: 'text', text: `New music on KEXP (rotation: ${rotation}, ${plays.length} tracks):\n\n${list}` }],
+        };
+      }
+
+      case 'get_local_artist_plays': {
+        const plays = await kexpClient.getLocalArtistPlays({
+          artist: args?.artist as string,
+          airdate_after: args?.airdate_after as string,
+          airdate_before: args?.airdate_before as string,
+          limit: Math.min((args?.limit as number) || 20, 50),
+          offset: (args?.offset as number) || 0,
+        });
+
+        if (plays.length === 0) {
+          return { content: [{ type: 'text', text: 'No local (PNW) artist plays found in the last 30 days.' }] };
+        }
+
+        const list = plays.map((play, i) => `${i + 1}. ${formatPlayLine(play)}`).join('\n\n');
+        return {
+          content: [{ type: 'text', text: `Local artist plays on KEXP (${plays.length} tracks):\n\n${list}` }],
+        };
+      }
+
+      case 'get_show_playlist': {
+        const showId = args?.show_id as number;
+        if (!showId) {
+          throw new Error('show_id parameter is required');
+        }
+
+        const plays = await kexpClient.getShowPlaylist(showId, {
+          limit: Math.min((args?.limit as number) || 100, 200),
+          offset: (args?.offset as number) || 0,
+          includeAirbreaks: (args?.include_airbreaks as boolean) === true,
+        });
+
+        if (plays.length === 0) {
+          return { content: [{ type: 'text', text: `No plays found for show ${showId}.` }] };
+        }
+
+        const list = plays.map((play, i) => `${i + 1}. ${formatPlayLine(play)}`).join('\n\n');
+        return {
+          content: [{ type: 'text', text: `Playlist for show ${showId} (${plays.length} tracks):\n\n${list}` }],
+        };
+      }
+
+      case 'search_shows': {
+        const keyword = args?.keyword as string;
+        if (!keyword) {
+          throw new Error('keyword parameter is required');
+        }
+
+        const shows = await kexpClient.searchShows({
+          keyword,
+          start_time_after: args?.start_time_after as string,
+          start_time_before: args?.start_time_before as string,
+          limit: Math.min((args?.limit as number) || 50, 100),
+        });
+
+        if (shows.length === 0) {
+          return { content: [{ type: 'text', text: `No shows found matching "${keyword}" in the last 30 days.` }] };
+        }
+
+        const list = shows.map((show, i) => `${i + 1}. ${formatShowLine(show)}`).join('\n\n');
+        return {
+          content: [{ type: 'text', text: `Shows matching "${keyword}" (${shows.length}):\n\n${list}` }],
+        };
+      }
+
+      case 'get_shows_by_host': {
+        const hostName = args?.host_name as string;
+        const hostId = args?.host_id as number;
+        if (!hostName && !hostId) {
+          throw new Error('Either host_name or host_id is required');
+        }
+
+        const shows = await kexpClient.getShowsByHost({
+          host_name: hostName,
+          host_id: hostId,
+          start_time_after: args?.start_time_after as string,
+          start_time_before: args?.start_time_before as string,
+          limit: Math.min((args?.limit as number) || 20, 50),
+          offset: (args?.offset as number) || 0,
+        });
+
+        if (shows.length === 0) {
+          return { content: [{ type: 'text', text: `No shows found for host ${hostName || hostId} in the last 30 days.` }] };
+        }
+
+        const list = shows.map((show, i) => `${i + 1}. ${formatShowLine(show)}`).join('\n\n');
+        return {
+          content: [{ type: 'text', text: `Shows hosted by ${hostName || `#${hostId}`} (${shows.length}):\n\n${list}` }],
+        };
+      }
+
+      case 'list_plays': {
+        const plays = await kexpClient.listPlays({
+          artist: args?.artist as string,
+          song: args?.song as string,
+          album: args?.album as string,
+          show_id: args?.show_id as number,
+          airdate_after: args?.airdate_after as string,
+          airdate_before: args?.airdate_before as string,
+          ordering: args?.ordering as string,
+          exclude_airbreaks: (args?.exclude_airbreaks as boolean) !== false,
+          limit: Math.min((args?.limit as number) || 20, 100),
+          offset: (args?.offset as number) || 0,
+        });
+
+        if (plays.length === 0) {
+          return { content: [{ type: 'text', text: 'No plays found for those filters.' }] };
+        }
+
+        const list = plays.map((play, i) => `${i + 1}. ${formatPlayLine(play)}`).join('\n\n');
+        return {
+          content: [{ type: 'text', text: `Plays (${plays.length}):\n\n${list}` }],
+        };
+      }
+
+      case 'list_shows': {
+        const shows = await kexpClient.listShows({
+          program: args?.program as number,
+          host: args?.host as string,
+          start_time_after: args?.start_time_after as string,
+          start_time_before: args?.start_time_before as string,
+          ordering: args?.ordering as string,
+          limit: Math.min((args?.limit as number) || 20, 50),
+          offset: (args?.offset as number) || 0,
+        });
+
+        if (shows.length === 0) {
+          return { content: [{ type: 'text', text: 'No shows found for those filters.' }] };
+        }
+
+        const list = shows.map((show, i) => `${i + 1}. ${formatShowLine(show)}`).join('\n\n');
+        return {
+          content: [{ type: 'text', text: `Shows (${shows.length}):\n\n${list}` }],
+        };
+      }
+
+      case 'get_timeslots': {
+        const limit = Math.min((args?.limit as number) || 30, 100);
+        const offset = (args?.offset as number) || 0;
+        const weekday = args?.weekday as number | undefined;
+        const program = args?.program as number | undefined;
+        const filtering = weekday != null || program != null;
+
+        // The timeslots endpoint ignores `weekday`/`program` filters (verified
+        // against the live API) and holds only ~60 rows total, so fetch the
+        // whole grid and filter/paginate client-side.
+        const timeslotsResponse = await kexpClient.getTimeslots({
+          limit: filtering ? 200 : limit,
+          offset: filtering ? 0 : offset,
+          ordering: 'weekday',
+        });
+
+        let timeslots = timeslotsResponse.results;
+        if (weekday != null) {
+          timeslots = timeslots.filter((slot) => slot.weekday === weekday);
+        }
+        if (program != null) {
+          timeslots = timeslots.filter((slot) => slot.program === program);
+        }
+        if (filtering) {
+          timeslots = timeslots.slice(offset, offset + limit);
+        }
+
+        if (timeslots.length === 0) {
+          return { content: [{ type: 'text', text: 'No timeslots found.' }] };
+        }
+
+        const list = timeslots.map((slot, i) => `${i + 1}. ${formatTimeslotLine(slot)}`).join('\n\n');
+        return {
+          content: [{ type: 'text', text: `KEXP timeslots (${timeslots.length}):\n\n${list}` }],
+        };
+      }
+
+      case 'get_timeslot_by_id': {
+        const id = args?.id as number;
+        if (!id) {
+          throw new Error('ID parameter is required');
+        }
+
+        const slot = await kexpClient.getTimeslotById(id);
+        if (!slot) {
+          return { content: [{ type: 'text', text: `Timeslot with ID ${id} not found` }] };
+        }
+
+        return {
+          content: [{ type: 'text', text: `Timeslot Details (ID: ${slot.id}):\n\n${formatTimeslotLine(slot)}` }],
         };
       }
 

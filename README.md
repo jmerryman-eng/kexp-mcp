@@ -38,6 +38,8 @@ Add this server to your Claude Desktop configuration:
 
 ### Available Tools
 
+**Core lookups**
+
 1. **get_current_play** - Get the currently playing track
 2. **get_recent_plays** - Get recently played tracks (limit: 1-100)
 3. **search_plays** - Search for tracks by query (limit: 1-50)
@@ -48,6 +50,27 @@ Add this server to your Claude Desktop configuration:
 8. **get_host_by_id** - Get detailed host information by ID
 9. **get_show_by_id** - Get detailed show information by ID
 10. **get_program_by_id** - Get detailed program information by ID
+
+**Context & discovery**
+
+11. **get_now_playing** - Current track enriched with DJ comment + show/host/tagline in one call
+12. **get_today_context** - Every show airing today (Pacific time) with taglines and sample DJ comments
+13. **get_new_music** - Tracks KEXP is championing by rotation status (`Heavy` default / `Medium` / `Light`), past 30 days
+14. **get_local_artist_plays** - Plays of Pacific Northwest / local artists, past 30 days
+15. **get_show_playlist** - All songs played during a specific show (by show ID), in airdate order
+16. **search_shows** - Search show taglines / program names by keyword, past 30 days
+17. **get_shows_by_host** - Shows hosted by a DJ (by name or host ID), past 30 days
+
+**General listing & schedule**
+
+18. **list_plays** - List plays with full filters (artist/song/album/show_id/airdate range/ordering)
+19. **list_shows** - List shows filtered by program, host, and start-time range
+20. **get_timeslots** - Weekly schedule grid, filter by weekday (1=Mon…7=Sun) or program
+21. **get_timeslot_by_id** - Detailed information about a specific weekly timeslot
+
+> Notes: the KEXP API ignores `is_local` / `rotation_status` / `play_type` / `program` / host filters
+> server-side, so those tools over-fetch and filter client-side. Date parameters are sent as UTC and
+> capped to a 30-day window to limit upstream load.
 
 ## API Reference
 
